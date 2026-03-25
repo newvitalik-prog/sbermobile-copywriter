@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'google/gemini-2.0-flash-001',
+      model: 'anthropic/claude-opus-4-6',
       max_tokens: 300,
       messages: [
         { role: 'system', content: prompt },
