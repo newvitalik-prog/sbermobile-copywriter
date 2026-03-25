@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
 
 const SYSTEM_MESSAGE = `Ты — старший копирайтер СберМобайла. Твоя единственная задача: взять черновик SMS и переписать его строго по правилам ниже. Ты не объясняешь своё решение, не комментируешь изменения, не предлагаешь варианты — только готовый финальный текст SMS.
 
@@ -79,21 +78,34 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Черновик не может быть пустым' }, { status: 400 })
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  const apiKey = process.env.OPENROUTER_API_KEY
   if (!apiKey) {
     return NextResponse.json({ error: 'API ключ не настроен' }, { status: 500 })
   }
 
-  const client = new Anthropic({ apiKey })
-
-  const message = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 300,
-    system: SYSTEM_MESSAGE,
-    messages: [{ role: 'user', content: draft.trim() }],
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'anthropic/claude-sonnet-4-6',
+      max_tokens: 300,
+      messages: [
+        { role: 'system', content: SYSTEM_MESSAGE },
+        { role: 'user', content: draft.trim() },
+      ],
+    }),
   })
 
-  const result = message.content[0].type === 'text' ? message.content[0].text : ''
+  if (!res.ok) {
+    const err = await res.text()
+    return NextResponse.json({ error: `OpenRouter: ${err}` }, { status: 500 })
+  }
+
+  const data = await res.json()
+  const result = data.choices?.[0]?.message?.content ?? ''
 
   return NextResponse.json({ result })
 }
